@@ -42,7 +42,9 @@ async def handle_message(websocket, path):
             
             if msg_type == "message":
                 user_id = msg.get("user_id", "")
-                user_nickname = msg.get("sender", {}).get("nickname", str(user_id))
+                                    sender = msg.get("sender", {})
+                    # 优先使用群名片(card)，其次昵称(nickname)，最后 fallback 到用户ID
+                    user_nickname = sender.get("card") or sender.get("nickname") or str(user_id)
                 message_text = msg.get("raw_message", "")
                 group_id = msg.get("group_id")
                 
