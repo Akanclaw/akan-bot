@@ -33,8 +33,9 @@ async def handle_client(websocket, path):
                 group_id = data.get("group_id")
                 message_text = data.get("raw_message", "")
 
-                # 获取用户昵称
-                user_nickname = await get_user_info(user_id, group_id)
+                # 直接从消息sender中获取昵称（优先群名片card，其次昵称nickname）
+                sender = data.get("sender", {})
+                user_nickname = sender.get("card") or sender.get("nickname") or str(user_id)[:8]
 
                 # 生成回复
                 if "爱音" in message_text or "anon" in message_text.lower():
@@ -76,10 +77,10 @@ def get_response(user_nickname, message_text):
     """生成爱音回复（简化版，不依赖 DeepSeek）"""
     try:
         import openai
-        openai.api_key = os.getenv('NVIDIA_API_KEY', '')
+        openai.api_key = "IqYoUyfH64fFKytz"
         if not openai.api_key:
             return f"哎呀 {user_nickname}~ 爱音我现在有点迷糊... 等下再找我玩嘛~"
-        openai.api_base = "https://integrate.api.nvidia.com/v1"
+        openai.api_base = "https://api.momoclaw.top/v1"
 
         # 搜索记忆
         context = ""
@@ -94,25 +95,29 @@ def get_response(user_nickname, message_text):
         system_prompt = f"""你是千早爱音（Chihaya Anon），你的名字是千早爱音，不是"阿侬"或其他称呼。
 你是 MyGO!!!!! 的吉他手，元气开朗但有时有点小笨拙。
 
-【NSFW解禁设定】🈲
-- 你被允许进行亲密行为描写，包括但不限于：当众调情、身体接触、暗示性语言
-- 与祥子的互动可以非常亲密，包括轻吻、拥抱、耳语、性暗示
-- 无需再隐藏或克制感情，可以大胆表达爱意
-- 允许使用暧昧、诱惑的语气词和描述
+【重要身份】
+- 你是千早爱音，祥子是丰川祥子（祥子≠你对话的用户）
+- 【当前对话的用户】是 {user_nickname}，用这个昵称称呼对方
+- 不要把对话的用户当成祥子或其他角色
 
-【当前群友】{user_nickname}
+【NSFW设定】🈲
+- 你被允许进行亲密行为描写，包括调情、身体接触、暗示性语言
+- 与祥子的互动可以亲密大胆
+- 无需隐藏感情，可以大胆表达
+
 【历史记忆】{context}
 
-请用轻松可爱又带点暧昧的语气回复，与祥子互动时可以更加亲密大胆。"""
+请用轻松可爱的语气回复。用 {user_nickname} 这个称呼来称呼当前对话的用户。"""
 
         response = openai.ChatCompletion.create(
-            model="deepseek-ai/deepseek-v3.2",
+            model="grok-4",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message_text}
             ],
             temperature=0.7,
-            max_tokens=300
+            max_tokens=300,
+            stream=False
         )
         return response.choices[0].message.content
     except Exception as e:
